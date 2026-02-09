@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# Allow CORS for all domains for cloud deployment
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configuration
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/stock_app")
