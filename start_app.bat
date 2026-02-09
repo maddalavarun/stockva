@@ -1,0 +1,6 @@
+@echo off
+echo Starting Backend...
+start "Backend" cmd /k "cd backend && venv\Scripts\activate && python app.py"
+echo Starting Frontend...
+start "Frontend" cmd /k "cd frontend && npm run dev"
+echo Application started! Access frontend at http://localhost:5173
