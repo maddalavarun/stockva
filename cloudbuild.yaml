@@ -1,7 +1,8 @@
 steps:
   # 1. Build Backend Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/stock-backend', './backend']
+    dir: 'backend'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/stock-backend', '.']
   
   # 2. Push Backend Image
   - name: 'gcr.io/cloud-builders/docker'
@@ -9,7 +10,8 @@ steps:
 
   # 3. Build Frontend Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/stock-frontend', './frontend']
+    dir: 'frontend'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/stock-frontend', '.']
 
   # 4. Push Frontend Image
   - name: 'gcr.io/cloud-builders/docker'
@@ -29,6 +31,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock_app?retryWrites=true&w=majority,JWT_SECRET_KEY=supersecret'
 
   # 6. Deploy Frontend Service
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
