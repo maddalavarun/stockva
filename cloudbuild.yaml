@@ -32,7 +32,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock_app?retryWrites=true&w=majority,JWT_SECRET_KEY=supersecret'
+      - 'MONGO_URI=mongodb+srv://Harsha:Harsha@cluster0.22xbuwf.mongodb.net/stock_app?appName=Cluster0,JWT_SECRET_KEY=change-this-secret-key-in-production'
 
   # 6. Deploy Frontend Service
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
