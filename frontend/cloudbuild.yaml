@@ -1,0 +1,5 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/harsha-3bd3b/stock-app', '--build-arg', 'VITE_API_URL=https://stock-api-njuobdwlzq-uc.a.run.app/api', '.']
+images:
+- 'gcr.io/harsha-3bd3b/stock-app'

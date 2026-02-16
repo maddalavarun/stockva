@@ -1,41 +1,51 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Layout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import History from './pages/History';
-import RegisterStaff from './pages/RegisterStaff';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import AdminDashboard from './pages/AdminDashboard';
+import StaffDashboard from './pages/StaffDashboard';
+import HistoryPage from './pages/HistoryPage';
 
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
-  return children;
+// Simple protective routing
+const AdminRoute = ({ children }) => {
+    const { user } = useAuth();
+    if (user?.role !== 'admin') return <Navigate to="/login" />;
+    return children;
 };
 
-const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Loading...</div>;
-  if (!user || user.role !== 'admin') return <Navigate to="/" />;
-  return children;
+const StaffRoute = ({ children }) => {
+    const { user } = useAuth();
+    if (user?.role !== 'staff' && user?.role !== 'admin') return <Navigate to="/login" />;
+    return children;
 };
 
 function App() {
-  return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    return (
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    <Route path="/login" element={<LoginPage />} />
 
-        <Route path="/" element={<ProtectedRoute><Navbar /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
-          <Route path="products" element={<Products />} />
-          <Route path="history" element={<History />} />
-          <Route path="register-staff" element={<AdminRoute><RegisterStaff /></AdminRoute>} />
-        </Route>
-      </Routes>
-    </AuthProvider>
-  );
+                    <Route element={<Layout />}>
+                        {/* Admin Routes */}
+                        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                        <Route path="/admin/products" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                        <Route path="/admin/staff" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+
+                        {/* Staff Routes */}
+                        <Route path="/staff" element={<StaffRoute><StaffDashboard /></StaffRoute>} />
+                        <Route path="/staff/add-stock" element={<StaffRoute><StaffDashboard /></StaffRoute>} />
+
+                        {/* Common Routes */}
+                        <Route path="/history" element={<HistoryPage />} />
+
+                        <Route path="/" element={<Navigate to="/login" />} />
+                    </Route>
+                </Routes>
+            </Router>
+        </AuthProvider>
+    );
 }
 
 export default App;

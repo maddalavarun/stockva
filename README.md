@@ -1,81 +1,122 @@
-# Stock Management App
+# Stock Management Web Application
 
-A full-stack stock management application built with Flask, React, and MongoDB.
+A complete stock management system with role-based access for Admin and Staff.
 
-## Features
-- **Authentication**: JWT-based login with Admin/Staff roles.
-- **Dashboard**: Stock overview, low stock alerts, recent activity.
-- **Product Management**: Add, Edit, Delete products (Admin/Staff).
-- **Stock Tracking**: Adjust stock levels, view detailed history.
-- **Staff Management**: Admin can create staff accounts.
+## 🚀 Features
 
-## Prerequisites
-- Python 3.8+
-- Node.js 14+
-- MongoDB (Local or Atlas)
+- **Authentication**: JWT-based secure login.
+- **Admin Dashboard**:
+  - Staff management (Create staff accounts).
+  - Product management (Add new products).
+  - Inventory Overview (Total stock summary).
+  - Low stock alerts.
+- **Staff Dashboard**:
+  - Quick stock addition with product search.
+  - View current inventory levels.
+- **Audit Log**: Full history tracking with date, time, and staff name.
+- **Export**: Export history to CSV.
+- **Modern UI**: Built with React, Tailwind CSS, and Lucide icons.
 
-## Setup
+---
 
-1. **Backend**:
+## 🏗️ Tech Stack
+
+- **Backend**: Flask, MongoDB (Atlas), JWT (Flask-JWT-Extended), Bcrypt.
+- **Frontend**: React (Vite), Tailwind CSS, Axios, Lucide React.
+
+---
+
+## 🛠️ Setup Instructions
+
+### 1. Backend Setup
+1. Navigate to the `backend` folder.
+2. Create a virtual environment (optional but recommended):
    ```bash
-   cd backend
    python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   # Linux/Mac
-   source venv/bin/activate
+   source venv/bin/scripts/activate  # On Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
    pip install -r requirements.txt
    ```
-   - A `.env` file should be created in `backend/` with `MONGO_URI`.
-   - `JWT_SECRET_KEY` should be set for JWT security.
-
-2. **Frontend**:
+4. Configure environment variables in `.env`:
+   ```env
+   MONGO_URI=your_mongodb_atlas_uri
+   JWT_SECRET_KEY=your_secret_key
+   PORT=5000
+   ```
+5. Start the server:
    ```bash
-   cd frontend
+   python app.py
+   ```
+6. **Important**: Create your first admin account:
+   ```bash
+   python setup_admin.py
+   ```
+
+### 2. Frontend Setup
+1. Navigate to the `frontend` folder.
+2. Install dependencies:
+   ```bash
    npm install
    ```
-   - Create a `.env` file in `frontend/` if you need to point to a production data source:
-     ```
-     VITE_API_URL=https://your-production-backend.com/api
-     ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open your browser at `http://localhost:5173`.
 
-## Running the App
+---
 
-Double-click `start_app.bat` or run:
+## 🗂️ Database Schema (MongoDB)
 
-**Backend:**
-```bash
-cd backend
-python app.py
-```
-(Runs on http://localhost:5000)
+### Users Collection
+- `name`: String
+- `email`: String (Unique)
+- `password`: String (Hashed)
+- `role`: String ("admin" or "staff")
+- `created_at`: DateTime
 
-**Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-(Runs on http://localhost:5173 - Access the app here)
+### Products Collection
+- `product_name`: String
+- `current_stock`: Number
+- `created_at`: DateTime
 
-Default Admin Credentials:
-The app automatically creates a default admin account if none exists.
-**Username**: `admin`
-**Password**: `admin123`
+### History Collection
+- `product_id`: ObjectId reference
+- `product_name`: String
+- `quantity_added`: Number
+- `staff_id`: String
+- `staff_name`: String
+- `date_time`: DateTime
 
-## Deployment
+---
 
-### Backend (e.g. Render)
-1. Push code to GitHub repository.
-2. Create a new Web Service on Render.
-3. Connect your repository.
-4. Set Build Command: `pip install -r requirements.txt`
-5. Set Start Command: `gunicorn app:app` (This project includes a `Procfile` for Render).
-6. Add Environment Variables: `MONGO_URI` and `JWT_SECRET_KEY`.
+## 🚢 Deployment Steps
 
-### Frontend (e.g. Vercel)
-1. Push code to GitHub.
-2. Import project in Vercel.
-3. Select `Vite` as framework preset.
-4. Build Command: `npm run build`
-5. Output Directory: `dist`
-6. Add Environment Variable: `VITE_API_URL` pointing to your deployed backend URL (e.g., `https://my-stock-app.onrender.com/api`).
+### Backend (Render / Cloud Run)
+1. Push your code to a GitHub repository.
+2. On **Render**:
+   - Create a new 'Web Service'.
+   - Connect your repo.
+   - Set Build Command: `pip install -r requirements.txt`
+   - Set Start Command: `gunicorn app:app` (Install gunicorn if needed).
+   - Add Environment Variables (MONGO_URI, JWT_SECRET_KEY).
+
+### Frontend (Vercel)
+1. On **Vercel**:
+   - Create a 'New Project'.
+   - Import your repository.
+   - Set Framework Preset to 'Vite'.
+   - Set Build Command: `npm run build`
+   - Set Output Directory: `dist`
+   - Deploy!
+
+---
+
+## 🎯 Final Goal Achieved
+- Admin manages staff and products.
+- Staff adds stock.
+- Both see history.
+- Everything tracked with date and staff name.
+- Clean, modern, and responsive UI.
