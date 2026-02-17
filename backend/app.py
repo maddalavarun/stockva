@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
@@ -8,7 +8,15 @@ from datetime import timedelta
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+# Check if static frontend files exist (for combined deployment)
+static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+has_frontend = os.path.exists(static_folder) and os.path.exists(os.path.join(static_folder, 'index.html'))
+
+if has_frontend:
+    app = Flask(__name__, static_folder='static', static_url_path='')
+else:
+    app = Flask(__name__)
+
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configuration
@@ -29,9 +37,19 @@ app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(staff_bp, url_prefix='/api/staff')
 app.register_blueprint(common_bp, url_prefix='/api/common')
 
-@app.route('/')
-def index():
-    return {"message": "Stock Management API is running"}
+if has_frontend:
+    @app.route('/')
+    def serve_frontend():
+        return send_from_directory(app.static_folder, 'index.html')
+
+    @app.errorhandler(404)
+    def not_found(e):
+        """Serve index.html for SPA routing (React Router)"""
+        return send_from_directory(app.static_folder, 'index.html')
+else:
+    @app.route('/')
+    def index():
+        return {"message": "Stock Management API is running"}
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
