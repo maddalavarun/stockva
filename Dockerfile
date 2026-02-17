@@ -27,7 +27,9 @@ COPY backend/ .
 # Copy built frontend into static folder
 COPY --from=frontend-build /app/frontend/dist ./static
 
-# Cloud Run sets PORT env var
+# Environment variables for Cloud Run
 ENV PORT=8080
+ENV MONGO_URI=mongodb+srv://Harsha:Harsha@cluster0.22xbuwf.mongodb.net/?appName=Cluster0
+ENV JWT_SECRET_KEY=b9e9d6d7e8f9a0b1c2d3e4f5a6b7c8d9
 
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
