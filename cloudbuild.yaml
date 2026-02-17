@@ -1,0 +1,56 @@
+steps:
+  # Build Backend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/stock-api', '-f', 'backend/Dockerfile', 'backend']
+    id: 'build-backend'
+
+  # Build Frontend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/stock-app',
+      '-f', 'frontend/Dockerfile',
+      '--build-arg', 'VITE_API_URL=https://stock-api-${_REGION_HASH}-uc.a.run.app/api',
+      'frontend'
+    ]
+    id: 'build-frontend'
+
+  # Push Backend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/stock-api']
+    id: 'push-backend'
+
+  # Push Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/stock-app']
+    id: 'push-frontend'
+
+  # Deploy Backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'stock-api',
+      '--image', 'gcr.io/$PROJECT_ID/stock-api',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--set-env-vars', 'MONGO_URI=mongodb+srv://Harsha:Harsha@cluster0.22xbuwf.mongodb.net/?appName=Cluster0,JWT_SECRET_KEY=b9e9d6d7e8f9a0b1c2d3e4f5a6b7c8d9,PORT=5000'
+    ]
+    id: 'deploy-backend'
+
+  # Deploy Frontend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'stock-app',
+      '--image', 'gcr.io/$PROJECT_ID/stock-app',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--port', '8080'
+    ]
+    id: 'deploy-frontend'
+
+images:
+  - 'gcr.io/$PROJECT_ID/stock-api'
+  - 'gcr.io/$PROJECT_ID/stock-app'
