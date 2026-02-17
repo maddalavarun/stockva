@@ -33,6 +33,7 @@ export const setupAdmin = (data) => api.post('/auth/setup-admin', data);
 // Admin
 export const createStaff = (data) => api.post('/admin/create-staff', data);
 export const addProduct = (data) => api.post('/admin/add-product', data);
+export const deleteProduct = (id) => api.delete(`/admin/delete-product/${id}`);
 export const getStaffList = () => api.get('/admin/staff');
 export const getAdminSummary = () => api.get('/admin/dashboard-summary');
 

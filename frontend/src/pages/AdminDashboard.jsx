@@ -1,36 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { getAdminSummary, createStaff, addProduct, getProducts } from '../services/api';
-import { useLocation } from 'react-router-dom';
+import { getAdminSummary, createStaff, addProduct, getProducts, getStaffList, addStock, deleteProduct } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Plus,
     UserPlus,
     Package,
-    BarChart,
     Users,
-    TrendingUp,
     Loader2,
-    CheckCircle2
+    CheckCircle2,
+    AlertCircle,
+    Clock,
+    Trash2,
+    Mail
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+    const { user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [products, setProducts] = useState([]);
+    const [staffMembers, setStaffMembers] = useState([]);
 
-    // Forms
     const [staffData, setStaffData] = useState({ name: '', email: '', password: '' });
     const [productData, setProductData] = useState({ product_name: '', initial_stock: 0 });
     const [message, setMessage] = useState({ type: '', text: '' });
 
+    const [quantities, setQuantities] = useState({});
+    const [updating, setUpdating] = useState(false);
+    const [deleting, setDeleting] = useState({});
+
     const fetchData = async () => {
         try {
-            const [sumRes, prodRes] = await Promise.all([
+            const [sumRes, prodRes, staffRes] = await Promise.all([
                 getAdminSummary(),
-                getProducts()
+                getProducts(),
+                getStaffList()
             ]);
             setSummary(sumRes.data);
             setProducts(prodRes.data);
+            setStaffMembers(staffRes.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -38,22 +49,22 @@ const AdminDashboard = () => {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
+
+    const showMsg = (type, text) => {
+        setMessage({ type, text });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    };
 
     const handleCreateStaff = async (e) => {
         e.preventDefault();
         try {
             await createStaff(staffData);
-            setMessage({ type: 'success', text: 'Staff account created successfully!' });
+            showMsg('success', 'Staff account created!');
             setStaffData({ name: '', email: '', password: '' });
             fetchData();
         } catch (err) {
-            setMessage({
-                type: 'error',
-                text: err.response?.data?.message || err.message || 'Failed to create staff'
-            });
+            showMsg('error', err.response?.data?.message || 'Failed to create staff');
         }
     };
 
@@ -61,219 +72,287 @@ const AdminDashboard = () => {
         e.preventDefault();
         try {
             await addProduct(productData);
-            setMessage({ type: 'success', text: 'Product added successfully!' });
+            showMsg('success', 'Product added!');
             setProductData({ product_name: '', initial_stock: 0 });
             fetchData();
         } catch (err) {
-            setMessage({
-                type: 'error',
-                text: err.response?.data?.message || err.message || 'Failed to add product'
-            });
+            showMsg('error', err.response?.data?.message || 'Failed to add product');
         }
     };
 
+    const handleDeleteProduct = async (id, name) => {
+        if (!window.confirm(`Delete "${name}"? History records will be preserved.`)) return;
+        setDeleting(prev => ({ ...prev, [id]: true }));
+        try {
+            await deleteProduct(id);
+            showMsg('success', `"${name}" deleted!`);
+            fetchData();
+        } catch (err) {
+            showMsg('error', err.response?.data?.message || 'Failed to delete');
+        } finally {
+            setDeleting(prev => ({ ...prev, [id]: false }));
+        }
+    };
+
+    const incrementQty = (id) => setQuantities(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    const decrementQty = (id) => setQuantities(prev => ({ ...prev, [id]: Math.max((prev[id] || 0) - 1, 0) }));
+
+    const handleUpdateStock = async () => {
+        const updates = Object.entries(quantities).filter(([_, qty]) => qty > 0);
+        if (updates.length === 0) return;
+        setUpdating(true);
+        try {
+            for (const [productId, qty] of updates) {
+                await addStock({ product_id: productId, quantity: parseInt(qty) });
+            }
+            showMsg('success', `Updated ${updates.length} product(s)!`);
+            setQuantities({});
+            fetchData();
+        } catch (err) {
+            showMsg('error', 'Failed to update stock');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const hasChanges = Object.values(quantities).some(q => q > 0);
+    const productEmojis = ['🍎', '🍌', '🥑', '🍇', '📦', '🧃', '🥤', '🍕', '🎁', '🛒', '📱', '💻', '🖥️', '⌨️', '🖨️'];
+    const getEmoji = (index) => productEmojis[index % productEmojis.length];
+
     const isMain = location.pathname === '/admin';
-    const isProducts = location.pathname === '/admin/products' || isMain;
-    const isStaff = location.pathname === '/admin/staff' || isMain;
+    const isProducts = location.pathname === '/admin/products';
+    const isStaff = location.pathname === '/admin/staff';
 
     if (loading) return (
-        <div className="flex h-full items-center justify-center">
-            <Loader2 className="animate-spin text-primary-500" size={40} />
+        <div className="flex h-[60vh] items-center justify-center">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
         </div>
     );
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-3xl font-bold text-white">
-                    {isMain ? 'Admin Dashboard' : isProducts ? 'Product Management' : 'Staff Management'}
+        <div className="px-4 sm:px-5 py-5">
+            {/* Badge + Title */}
+            <div className="mb-5">
+                <span className="inline-block px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] sm:text-xs font-bold rounded-lg uppercase tracking-wider mb-2">
+                    Admin Panel
+                </span>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {isMain ? `Stock Management` : isProducts ? 'Product Management' : 'Staff Management'}
                 </h1>
-                <p className="text-slate-400 mt-1">
-                    {isMain ? 'Overview of your inventory and team.' : isProducts ? 'Add and monitor your products.' : 'Manage your staff members.'}
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                    {isMain ? `Admin: ${user?.name || 'Admin'} • Update quantities` : isProducts ? 'Add and manage products' : 'Create and manage staff accounts'}
                 </p>
             </div>
 
+            {/* Message */}
             {message.text && (
-                <div className={`p-4 rounded-xl flex items-center gap-3 border ${message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                    : 'bg-red-500/10 border-red-500/20 text-red-400'
+                <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium ${message.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                        : 'bg-red-50 text-red-600 border border-red-100'
                     }`}>
-                    {message.type === 'success' ? <CheckCircle2 size={20} /> : null}
-                    <span className="font-medium">{message.text}</span>
-                    <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto text-current opacity-50 hover:opacity-100">&times;</button>
+                    {message.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                    <span className="truncate">{message.text}</span>
                 </div>
             )}
 
-            {/* Stats Cards - Only on Dashboard or Products/Staff tabs occasionally */}
+            {/* === MAIN DASHBOARD === */}
             {isMain && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="card bg-gradient-to-br from-primary-600/20 to-transparent">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-primary-600/20 text-primary-400 rounded-xl">
-                                <Package size={24} />
-                            </div>
-                            <TrendingUp size={20} className="text-emerald-500" />
+                <>
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+                        <div className="card text-center !p-3 sm:!p-5">
+                            <p className="text-xl sm:text-2xl font-bold text-blue-500">{summary?.total_products || 0}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase mt-0.5 sm:mt-1">Products</p>
                         </div>
-                        <p className="text-slate-400 font-medium">New Products Today</p>
-                        <h2 className="text-4xl font-bold text-white mt-1">{summary?.today_products || 0}</h2>
+                        <div className="card text-center !p-3 sm:!p-5">
+                            <p className="text-xl sm:text-2xl font-bold text-emerald-500">{summary?.today_stock_added || 0}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase mt-0.5 sm:mt-1">Stock Today</p>
+                        </div>
+                        <div className="card text-center !p-3 sm:!p-5">
+                            <p className="text-xl sm:text-2xl font-bold text-purple-500">{summary?.total_staff || 0}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase mt-0.5 sm:mt-1">Staff</p>
+                        </div>
                     </div>
 
-                    <div className="card bg-gradient-to-br from-emerald-600/20 to-transparent">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-emerald-600/20 text-emerald-400 rounded-xl">
-                                <BarChart size={24} />
-                            </div>
+                    {/* Product List */}
+                    <div className="card">
+                        <div className="flex items-center justify-between px-1 pb-3 border-b border-gray-100">
+                            <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">Product</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">Adjust Stock</span>
                         </div>
-                        <p className="text-slate-400 font-medium">Stock Added Today</p>
-                        <h2 className="text-4xl font-bold text-white mt-1">{summary?.today_stock_added || 0}</h2>
+                        <div className="divide-y divide-gray-50">
+                            {products.map((product, index) => (
+                                <div key={product._id} className="flex items-center justify-between py-3 sm:py-4 px-1 gap-2">
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-9 h-9 sm:w-11 sm:h-11 bg-gray-50 rounded-xl flex items-center justify-center text-base sm:text-xl shrink-0">
+                                            {getEmoji(index)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{product.product_name}</h3>
+                                            <p className="text-[10px] sm:text-xs text-gray-400">Stock: {product.current_stock}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                        <input type="number" value={quantities[product._id] || 0}
+                                            onChange={(e) => setQuantities(prev => ({ ...prev, [product._id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                            className="qty-input" min="0"
+                                        />
+                                        <button onClick={() => decrementQty(product._id)} className="qty-btn">−</button>
+                                        <button onClick={() => incrementQty(product._id)} className="qty-btn">+</button>
+                                    </div>
+                                </div>
+                            ))}
+                            {products.length === 0 && (
+                                <div className="py-12 text-center">
+                                    <Package size={36} className="mx-auto text-gray-200 mb-3" />
+                                    <p className="text-gray-400 text-sm">No products yet.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="card bg-gradient-to-br from-purple-600/20 to-transparent">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl">
-                                <Users size={24} />
-                            </div>
-                        </div>
-                        <p className="text-slate-400 font-medium">New Staff Today</p>
-                        <h2 className="text-4xl font-bold text-white mt-1">{summary?.today_staff || 0}</h2>
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-4 px-1">
+                        <p className="text-[10px] sm:text-xs text-gray-400 italic flex items-center gap-1">
+                            <Clock size={10} /> Last synced: Just now
+                        </p>
+                        <button onClick={() => navigate('/history')} className="text-[10px] sm:text-xs text-blue-500 font-semibold flex items-center gap-1 hover:text-blue-600">
+                            View History <Clock size={10} />
+                        </button>
                     </div>
-                </div>
+
+                    {/* Update Stock CTA */}
+                    <div className="fixed bottom-14 left-0 right-0 px-4 sm:px-5 pb-2 pt-3 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent z-20">
+                        <button onClick={handleUpdateStock} disabled={!hasChanges || updating}
+                            className={`btn w-full h-12 sm:h-14 flex items-center justify-center gap-2 text-sm sm:text-base rounded-2xl ${hasChanges ? 'btn-primary' : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}
+                        >
+                            {updating ? <Loader2 className="animate-spin" size={18} /> : <><Package size={18} /> Update Stock</>}
+                        </button>
+                    </div>
+                </>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Add Product Form */}
-                {isProducts && (
-                    <div className="card relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5">
-                            <Package size={120} />
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                            <Plus className="text-primary-500" size={24} />
+            {/* === PRODUCTS PAGE === */}
+            {isProducts && (
+                <>
+                    {/* Add Product Form */}
+                    <div className="card mb-5">
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Plus className="text-blue-500" size={16} />
                             Add New Product
                         </h3>
-                        <form onSubmit={handleAddProduct} className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-400">Product Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={productData.product_name}
-                                    onChange={(e) => setProductData({ ...productData, product_name: e.target.value })}
-                                    placeholder="e.g. MacBook Pro M3"
-                                    className="input w-full"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-400">Initial Stock</label>
-                                <input
-                                    type="number"
-                                    required
-                                    value={productData.initial_stock}
-                                    onChange={(e) => setProductData({ ...productData, initial_stock: e.target.value })}
-                                    placeholder="0"
-                                    className="input w-full"
-                                />
-                            </div>
-                            <button type="submit" className="btn btn-primary w-full">
-                                Register Product
-                            </button>
+                        <form onSubmit={handleAddProduct} className="space-y-3">
+                            <input type="text" required value={productData.product_name}
+                                onChange={(e) => setProductData({ ...productData, product_name: e.target.value })}
+                                placeholder="Product name" className="input"
+                            />
+                            <input type="number" required value={productData.initial_stock}
+                                onChange={(e) => setProductData({ ...productData, initial_stock: e.target.value })}
+                                placeholder="Initial stock" className="input"
+                            />
+                            <button type="submit" className="btn btn-primary w-full">Add Product</button>
                         </form>
                     </div>
-                )}
 
-                {/* Create Staff Form */}
-                {isStaff && (
-                    <div className="card relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5">
-                            <UserPlus size={120} />
+                    {/* Product List with Delete */}
+                    <div className="card">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm sm:text-base font-bold text-gray-900">All Products</h3>
+                            <span className="text-[10px] sm:text-xs text-gray-400 font-semibold">{products.length} total</span>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                            <UserPlus className="text-emerald-500" size={24} />
+                        <div className="divide-y divide-gray-50">
+                            {products.map((p, i) => (
+                                <div key={p._id} className="flex items-center justify-between py-3 px-1 gap-2">
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-50 rounded-xl flex items-center justify-center text-base sm:text-lg shrink-0">{getEmoji(i)}</div>
+                                        <div className="min-w-0">
+                                            <span className="font-medium text-gray-800 text-xs sm:text-sm truncate block">{p.product_name}</span>
+                                            <p className="text-[10px] sm:text-xs text-gray-400">Stock: {p.current_stock}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                        <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg ${p.current_stock < 10 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                                            {p.current_stock}
+                                        </span>
+                                        <button
+                                            onClick={() => handleDeleteProduct(p._id, p.product_name)}
+                                            disabled={deleting[p._id]}
+                                            className="p-1.5 sm:p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete product"
+                                        >
+                                            {deleting[p._id] ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {products.length === 0 && (
+                                <div className="py-12 text-center">
+                                    <Package size={36} className="mx-auto text-gray-200 mb-3" />
+                                    <p className="text-gray-400 text-sm">No products yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* === STAFF PAGE === */}
+            {isStaff && (
+                <>
+                    {/* Create Staff Form */}
+                    <div className="card mb-5">
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <UserPlus className="text-blue-500" size={16} />
                             Create Staff Account
                         </h3>
-                        <form onSubmit={handleCreateStaff} className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-400">Full Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={staffData.name}
-                                    onChange={(e) => setStaffData({ ...staffData, name: e.target.value })}
-                                    placeholder="John Doe"
-                                    className="input w-full"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-400">Email Address</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={staffData.email}
-                                    onChange={(e) => setStaffData({ ...staffData, email: e.target.value })}
-                                    placeholder="john@example.com"
-                                    className="input w-full"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-400">Password</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={staffData.password}
-                                    onChange={(e) => setStaffData({ ...staffData, password: e.target.value })}
-                                    placeholder="••••••••"
-                                    className="input w-full"
-                                />
-                            </div>
-                            <button type="submit" className="btn btn-primary bg-emerald-600 hover:bg-emerald-700 w-full">
-                                Create Account
-                            </button>
+                        <form onSubmit={handleCreateStaff} className="space-y-3">
+                            <input type="text" required value={staffData.name}
+                                onChange={(e) => setStaffData({ ...staffData, name: e.target.value })}
+                                placeholder="Full name" className="input"
+                            />
+                            <input type="email" required value={staffData.email}
+                                onChange={(e) => setStaffData({ ...staffData, email: e.target.value })}
+                                placeholder="Email address" className="input"
+                            />
+                            <input type="password" required value={staffData.password}
+                                onChange={(e) => setStaffData({ ...staffData, password: e.target.value })}
+                                placeholder="Password" className="input"
+                            />
+                            <button type="submit" className="btn btn-primary w-full">Create Account</button>
                         </form>
                     </div>
-                )}
-            </div>
 
-            {/* Quick View Table */}
-            {isProducts && (
-                <div className="card">
-                    <h3 className="text-xl font-bold text-white mb-6">Current Stock Levels</h3>
-                    <div className="table-container">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-slate-800 text-slate-400 text-sm">
-                                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Product Name</th>
-                                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Stock Level</th>
-                                    <th className="px-6 py-4 font-semibold uppercase tracking-wider text-right">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {products.map((p) => (
-                                    <tr key={p._id} className="hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-6 py-4 text-slate-200 font-medium">{p.product_name}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.current_stock < 10 ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
-                                                }`}>
-                                                {p.current_stock} units
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {p.current_stock < 10 ? (
-                                                <span className="text-red-500 text-xs font-bold animate-pulse">Low Stock</span>
-                                            ) : (
-                                                <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Healthy</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {products.length === 0 && (
-                                    <tr>
-                                        <td colSpan="3" className="px-6 py-10 text-center text-slate-500 italic">No products registered yet.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                    {/* Staff Members List */}
+                    <div className="card">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm sm:text-base font-bold text-gray-900">Staff Members</h3>
+                            <span className="text-[10px] sm:text-xs text-gray-400 font-semibold">{staffMembers.length} total</span>
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                            {staffMembers.map((s) => (
+                                <div key={s._id} className="flex items-center gap-2.5 sm:gap-3 py-3 px-1">
+                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs sm:text-sm shrink-0">
+                                        {s.name ? s.name[0].toUpperCase() : '?'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{s.name}</p>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 truncate flex items-center gap-1">
+                                            <Mail size={9} />
+                                            {s.email}
+                                        </p>
+                                    </div>
+                                    <span className="text-[9px] sm:text-[10px] text-gray-300 font-medium uppercase shrink-0">Staff</span>
+                                </div>
+                            ))}
+                            {staffMembers.length === 0 && (
+                                <div className="py-12 text-center">
+                                    <Users size={36} className="mx-auto text-gray-200 mb-3" />
+                                    <p className="text-gray-400 text-sm">No staff members yet.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

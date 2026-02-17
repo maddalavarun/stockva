@@ -1,102 +1,82 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, BarChart, Loader2 } from 'lucide-react';
+import { login } from '../services/api';
+import { Package, Loader2, AlertCircle } from 'lucide-react';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
     const { loginUser } = useAuth();
-
-    React.useEffect(() => {
-        // Clear old sessions if they reach the login page
-        localStorage.clear();
-    }, []);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
         setLoading(true);
+        setError('');
         try {
             const { data } = await login({ email, password });
-            loginUser(data.user, data.access_token);
-            if (data.user.role === 'admin') {
-                navigate('/admin');
-            } else {
-                navigate('/staff');
-            }
+            loginUser(data.user, data.token);
+            navigate(data.user.role === 'admin' ? '/admin' : '/staff');
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to login');
+            setError(err.response?.data?.message || 'Login failed');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-            <div className="max-w-md w-full">
-                <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary-600/10 text-primary-500 mb-6 border border-primary-500/20 shadow-2xl shadow-primary-500/10">
-                        <BarChart size={40} />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+            <div className="w-full max-w-sm">
+                {/* Logo */}
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-blue-500/25">
+                        <Package size={28} className="text-white" />
                     </div>
-                    <h1 className="text-4xl font-bold text-white tracking-tight">StockPro</h1>
-                    <p className="text-slate-400 mt-2">Sign in to manage your inventory</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">StockPro</h1>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Sign in to manage your inventory</p>
                 </div>
 
+                {/* Card */}
                 <div className="card">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-xl text-sm font-medium">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300 ml-1">Email Address</label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-slate-500" size={20} />
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="name@company.com"
-                                    className="input w-full pl-11"
-                                />
-                            </div>
+                    {error && (
+                        <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-xs sm:text-sm font-medium border border-red-100 flex items-center gap-2">
+                            <AlertCircle size={14} className="shrink-0" />
+                            <span>{error}</span>
                         </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300 ml-1">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-3 text-slate-500" size={20} />
-                                <input
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="input w-full pl-11"
-                                />
-                            </div>
+                    )}
+                    <form onSubmit={handleSubmit} className="space-y-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+                            <input
+                                type="email" required value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                className="input"
+                            />
                         </div>
-
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Password</label>
+                            <input
+                                type="password" required value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="input"
+                            />
+                        </div>
                         <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn btn-primary w-full h-12 flex items-center justify-center gap-2"
+                            type="submit" disabled={loading}
+                            className="btn btn-primary w-full h-11 sm:h-12 flex items-center justify-center gap-2 mt-4"
                         >
-                            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Sign In'}
                         </button>
                     </form>
                 </div>
 
-                <p className="text-center text-slate-500 mt-8 text-sm">
-                    Protected by industry-standard encryption.
+                <p className="text-center text-[10px] sm:text-xs text-gray-300 mt-6">
+                    StockPro • Inventory Management System
                 </p>
             </div>
         </div>

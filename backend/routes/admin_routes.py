@@ -61,25 +61,32 @@ def get_staff():
         s['_id'] = str(s['_id'])
     return jsonify(staff_members), 200
 
+@admin_bp.route('/delete-product/<product_id>', methods=['DELETE'])
+@admin_required
+def delete_product(product_id):
+    try:
+        result = products_col.delete_one({"_id": ObjectId(product_id)})
+        if result.deleted_count == 0:
+            return jsonify({"message": "Product not found"}), 404
+        return jsonify({"message": "Product deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"message": str(e)}), 400
+
 @admin_bp.route('/dashboard-summary', methods=['GET'])
 @admin_required
 def get_summary():
-    # Calculate Today's boundaries in IST
     now = datetime.now(ist)
     start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Today's new products
+
     today_products = products_col.count_documents({
         "created_at": {"$gte": start_of_today}
     })
-    
-    # Today's new staff
+
     today_staff = users_col.count_documents({
         "role": "staff",
         "created_at": {"$gte": start_of_today}
     })
-    
-    # Today's stock additions (from history)
+
     pipeline = [
         {"$match": {"date_time": {"$gte": start_of_today}}},
         {"$group": {"_id": None, "total": {"$sum": "$quantity_added"}}}
@@ -87,8 +94,14 @@ def get_summary():
     stock_res = list(history_col.aggregate(pipeline))
     today_stock_added = stock_res[0]['total'] if stock_res else 0
 
+    total_products = products_col.count_documents({})
+    total_staff = users_col.count_documents({"role": "staff"})
+
     return jsonify({
         "today_products": today_products,
         "today_staff": today_staff,
-        "today_stock_added": today_stock_added
+        "today_stock_added": today_stock_added,
+        "total_products": total_products,
+        "total_staff": total_staff
     }), 200
+
