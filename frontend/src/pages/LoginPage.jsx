@@ -18,7 +18,7 @@ const LoginPage = () => {
         setError('');
         try {
             const { data } = await login({ email, password });
-            loginUser(data.user, data.token);
+            loginUser(data.user, data.access_token);
             navigate(data.user.role === 'admin' ? '/admin' : '/staff');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed');
