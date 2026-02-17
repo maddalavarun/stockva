@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
@@ -44,7 +44,9 @@ if has_frontend:
 
     @app.errorhandler(404)
     def not_found(e):
-        """Serve index.html for SPA routing (React Router)"""
+        """Serve index.html for SPA routing, but return JSON for API routes"""
+        if request.path.startswith('/api/'):
+            return jsonify({"message": "Endpoint not found"}), 404
         return send_from_directory(app.static_folder, 'index.html')
 else:
     @app.route('/')

@@ -25,7 +25,7 @@ const AdminDashboard = () => {
     const [staffMembers, setStaffMembers] = useState([]);
 
     const [staffData, setStaffData] = useState({ name: '', email: '', password: '' });
-    const [productData, setProductData] = useState({ product_name: '', initial_stock: 0 });
+    const [productData, setProductData] = useState({ product_name: '', initial_stock: '' });
     const [message, setMessage] = useState({ type: '', text: '' });
 
     const [quantities, setQuantities] = useState({});
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
         try {
             await addProduct(productData);
             showMsg('success', 'Product added!');
-            setProductData({ product_name: '', initial_stock: 0 });
+            setProductData({ product_name: '', initial_stock: '' });
             fetchData();
         } catch (err) {
             showMsg('error', err.response?.data?.message || 'Failed to add product');
@@ -147,8 +147,8 @@ const AdminDashboard = () => {
             {/* Message */}
             {message.text && (
                 <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium ${message.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                        : 'bg-red-50 text-red-600 border border-red-100'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                    : 'bg-red-50 text-red-600 border border-red-100'
                     }`}>
                     {message.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                     <span className="truncate">{message.text}</span>
@@ -246,9 +246,9 @@ const AdminDashboard = () => {
                                 onChange={(e) => setProductData({ ...productData, product_name: e.target.value })}
                                 placeholder="Product name" className="input"
                             />
-                            <input type="number" required value={productData.initial_stock}
+                            <input type="number" value={productData.initial_stock}
                                 onChange={(e) => setProductData({ ...productData, initial_stock: e.target.value })}
-                                placeholder="Initial stock" className="input"
+                                placeholder="Initial stock (0)" className="input" min="0"
                             />
                             <button type="submit" className="btn btn-primary w-full">Add Product</button>
                         </form>
